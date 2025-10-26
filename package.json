@@ -11,6 +11,8 @@
   "author": "Siddhesh Kamthe",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongoose": "^8.19.2",
+    "validator": "^13.15.20"
   }
 }
