@@ -2,36 +2,45 @@ const express = require("express");
 const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
+const validateSignup = require("./utils/validation");
+const bcrypt = require("bcrypt");
 
 // middleware that converts req JSON to JS Object
 app.use(express.json());
 
 app.post("/signup", async (req, res) => {
-  console.log(req.body);
-  const userObj = req.body;
-
   try {
-    const allowedKeys = [
-      "gender",
-      "photoUrl",
-      "age",
-      "firstName",
-      "LastName",
-      "emailId",
-      "password",
-      "firstName",
-    ];
-    const isAllowed = Object.keys(userObj).every((k) =>
-      allowedKeys.includes(k)
-    );
-    if (!isAllowed) {
-      throw new Error("Invalid Signup!");
-    }
+    validateSignup(req);
+    const { firstName, lastName, emailId, password } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userObj = {
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    };
     const user = new User(userObj);
     await user.save();
     res.send("user added successfully!");
   } catch (err) {
     res.status(400).send("Error saving the user " + err.message);
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { emailId, password } = req.body;
+  try {
+    const user = await User.findOne({ emailId: emailId });
+    if (!user) {
+      throw new Error("Invalid credentials!");
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new Error("Invalid credentials!");
+    }
+    res.send("Logged In!");
+  } catch (error) {
+    res.status(400).send("Error : " + error.message);
   }
 });
 
