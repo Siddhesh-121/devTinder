@@ -59,6 +59,15 @@ const userSchema = new mongoose.Schema(
         }
       },
     },
+    about: {
+      type: String,
+      default: "This is a default description!",
+      maxLength: 200,
+    },
+    skills: {
+      type: Array,
+      maxLength: 10,
+    },
   },
   {
     timestamps: true,
