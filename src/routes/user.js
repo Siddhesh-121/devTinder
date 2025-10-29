@@ -1,7 +1,58 @@
 const express = require("express");
 const User = require("../models/user");
+const userAuth = require("../middlewares/auth");
+const ConnectionRequest = require("../models/connectionRequest");
 
 const userRouter = express.Router();
+
+userRouter.get("/user/request/received", userAuth, async (req, res) => {
+  try {
+    const loggedInUser = req.user;
+    const request = await ConnectionRequest.find({
+      toUserId: loggedInUser._id,
+      status: "interested",
+    }).populate("fromUserId", "firstName LastName gender skills");
+
+    if (!request) {
+      res.status(404).send("No request found!");
+    }
+
+    res.json({ data: request });
+  } catch (err) {
+    res.status(400).send("Error : " + err.message);
+  }
+});
+
+userRouter.get("/user/connections", userAuth, async (req, res) => {
+  const loggedInUser = req.user;
+  try {
+    const connections = await ConnectionRequest.find({
+      $or: [
+        { fromUserId: loggedInUser._id, status: "accepted" },
+        { toUserId: loggedInUser._id, status: "accepted" },
+      ],
+    })
+      .populate("fromUserId", "firstName LastName gender skills")
+      .populate("toUserId", "firstName LastName gender skills");
+
+    // console.log(connections);
+    if (!connections) {
+      res.status(404).send("No connections found");
+    }
+
+    const data = connections.map((item) => {
+      if (item.fromUserId._id.toString() === loggedInUser._id.toString()) {
+        return item.toUserId;
+      } else {
+        return item.fromUserId;
+      }
+    });
+
+    res.send(data);
+  } catch (err) {
+    res.status(400).send("Error : " + err.message);
+  }
+});
 
 userRouter.get("/user", async (req, res) => {
   const email = req.body.emailId;
@@ -17,14 +68,31 @@ userRouter.get("/user", async (req, res) => {
   }
 });
 
-userRouter.get("/feed", async (req, res) => {
+userRouter.get("/feed", userAuth, async (req, res) => {
   try {
-    const profiles = await User.find({});
-    if (!profiles) {
-      res.status(404).send("No profiles to show.");
-    } else {
-      res.send(profiles);
-    }
+    const loggedInUser = req.user;
+    const page = req.query.page || 1;
+    let limit = req.query.limit || 10;
+    limit = limit > 30 ? 30 : limit;
+    const skip = (page - 1) * limit;
+    const interactedUser = await ConnectionRequest.find({
+      $or: [{ fromUserId: loggedInUser._id }, { toUserId: loggedInUser._id }],
+    }).select("fromuserId toUserId");
+    const hideUsersfrommFeed = new Set();
+    interactedUser.map((item) => {
+      hideUsersfrommFeed.add(item.fromUserId);
+      hideUsersfrommFeed.add(item.toUserId);
+    });
+    const feed = await User.find({
+      $and: [
+        { _id: { $nin: Array.from(hideUsersfrommFeed) } },
+        { _id: { $ne: { _id: loggedInUser._id } } },
+      ],
+    })
+      .select("firstName LastName gender skills")
+      .skip(skip)
+      .limit(limit);
+    res.send(feed);
   } catch (err) {
     res.status(400).send("Something went wrong! " + err.message);
   }
