@@ -12,7 +12,7 @@ profileRouter.get("/profile/view", userAuth, async (req, res) => {
   try {
     const user = req.user;
     if (!user) {
-      throw new Error("User not present!");
+      return res.status(401).send("Please Login!");
     }
     res.send(user);
   } catch (err) {
