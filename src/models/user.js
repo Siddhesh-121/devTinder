@@ -80,7 +80,7 @@ userSchema.index({ firstName: 1, lastName: 1 });
 userSchema.methods.getJWT = async function () {
   const user = this;
   console.log(user);
-  const token = await jwt.sign({ _id: user._id }, "ILOVEKurkure$30@2025", {
+  const token = await jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
   return token;
