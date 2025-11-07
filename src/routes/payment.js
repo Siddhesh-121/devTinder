@@ -86,79 +86,83 @@ paymentRouter.post("/payment/checkout", userAuth, async (req, res) => {
   }
 });
 
-paymentRouter.post("/payment/webhook", async (req, res) => {
-  let event = req.body;
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  // Only verify the event if you have an endpoint secret defined.
-  // Otherwise use the basic event deserialized with JSON.parse
-  if (endpointSecret) {
-    // Get the signature sent by Stripe
-    const signature = req.headers["stripe-signature"];
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        signature,
-        endpointSecret
-      );
-      console.log("EVENT : ", event);
-    } catch (err) {
-      console.log(`Webhook signature verification failed.`, err.message);
-      return res.sendStatus(400);
+paymentRouter.post(
+  "/payment/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    let event = req.body;
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    // Only verify the event if you have an endpoint secret defined.
+    // Otherwise use the basic event deserialized with JSON.parse
+    if (endpointSecret) {
+      // Get the signature sent by Stripe
+      const signature = req.headers["stripe-signature"];
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          signature,
+          endpointSecret
+        );
+        console.log("EVENT : ", event);
+      } catch (err) {
+        console.log(`Webhook signature verification failed.`, err.message);
+        return res.sendStatus(400);
+      }
     }
-  }
-  let message = "";
-  switch (event.type) {
-    case "checkout.session.completed":
-      const checkout = event.data.object;
+    let message = "";
+    switch (event.type) {
+      case "checkout.session.completed":
+        const checkout = event.data.object;
 
-      //console.log(paymentSuccess);
-      // Then define and call a method to handle the successful payment intent.
-      // handlePaymentIntentSucceeded(paymentIntent);
-      try {
-        const paymentRecord = Payment.findOne({
-          sessionId: checkout.id,
-        });
-        const user = User.findOne({ _id: paymentRecord.userId });
-        paymentRecord.paymentId = checkout.payment_intent;
-        paymentRecord.status = checkout.payment_status;
-        if (checkout.payment_status === "paid") {
-          user.isPremium = true;
-          user.plan = paymentRecord.plan;
+        //console.log(paymentSuccess);
+        // Then define and call a method to handle the successful payment intent.
+        // handlePaymentIntentSucceeded(paymentIntent);
+        try {
+          const paymentRecord = Payment.findOne({
+            sessionId: checkout.id,
+          });
+          const user = User.findOne({ _id: paymentRecord.userId });
+          paymentRecord.paymentId = checkout.payment_intent;
+          paymentRecord.status = checkout.payment_status;
+          if (checkout.payment_status === "paid") {
+            user.isPremium = true;
+            user.plan = paymentRecord.plan;
+          }
+
+          console.log("Checkout completed : ", checkout);
+          user.save();
+          paymentRecord.save();
+        } catch (err) {
+          // console.log(`Error : `, err.message);
+          return res.status(400).send(err.message);
         }
+        message = `DB Record updated successfully!`;
+        break;
+      case "charge.updated":
+        const update = event.data.object;
 
-        console.log("Checkout completed : ", checkout);
-        user.save();
-        paymentRecord.save();
-      } catch (err) {
-        // console.log(`Error : `, err.message);
-        return res.status(400).send(err.message);
-      }
-      message = `DB Record updated successfully!`;
-      break;
-    case "charge.updated":
-      const update = event.data.object;
+        try {
+          const updateDoc = Payment.findOne({
+            paymentId: update.payment_intent,
+          });
+          updateDoc.receipt_url = update.receipt_url;
+          updateDoc.save();
+        } catch (err) {
+          return res.status(400).send(err.message);
+        }
+        message = `Recipt URL added`;
 
-      try {
-        const updateDoc = Payment.findOne({
-          paymentId: update.payment_intent,
-        });
-        updateDoc.receipt_url = update.receipt_url;
-        updateDoc.save();
-      } catch (err) {
-        return res.status(400).send(err.message);
-      }
-      message = `Recipt URL added`;
+        break;
+      default:
+        // Unexpected event type
+        //console.log(`Unhandled event type ${event.type}.`);
+        message = `Unhandled event type ${event.type}.`;
+    }
 
-      break;
-    default:
-      // Unexpected event type
-      //console.log(`Unhandled event type ${event.type}.`);
-      message = `Unhandled event type ${event.type}.`;
+    // Return a 200 response to acknowledge receipt of the event
+    response.status(200).send(message);
   }
-
-  // Return a 200 response to acknowledge receipt of the event
-  response.status(200).send(message);
-});
+);
 
 paymentRouter.get("/payment/verify/:sessionId", userAuth, async (req, res) => {
   try {
