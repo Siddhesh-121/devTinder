@@ -49,8 +49,8 @@ paymentRouter.post("/payment/checkout", userAuth, async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `http://13.50.246.188//premium`,
-      cancel_url: `http://13.50.246.188//premium`,
+      success_url: `http://13.50.246.188/premium`,
+      cancel_url: `http://13.50.246.188/premium`,
       client_reference_id: req.user._id.toString(),
       customer_email: req.user.emailId,
       metadata: {

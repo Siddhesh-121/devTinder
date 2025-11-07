@@ -13,7 +13,10 @@ const initializeSocket = require("./utils/socket");
 require("dotenv").config();
 
 // middleware that converts req JSON to JS Object
-app.use(express.json());
+app.use((req, res, next) => {
+  if (req.originalUrl === "/payment/webhook") return next();
+  return express.json();
+});
 app.use(
   cors({
     origin: "http://localhost:5173",
