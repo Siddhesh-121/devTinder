@@ -49,8 +49,8 @@ paymentRouter.post("/payment/checkout", userAuth, async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: `http://localhost:5173/premium`,
-      cancel_url: `http://localhost:5173/premium`,
+      success_url: `http://13.50.246.188//premium`,
+      cancel_url: `http://13.50.246.188//premium`,
       client_reference_id: req.user._id.toString(),
       customer_email: req.user.emailId,
       metadata: {
@@ -90,6 +90,7 @@ paymentRouter.post(
   "/payment/webhook",
   express.raw({ type: "application/json" }),
   async (req, res) => {
+    console.log("IN");
     let event = req.body;
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     // Only verify the event if you have an endpoint secret defined.
@@ -118,10 +119,10 @@ paymentRouter.post(
         // Then define and call a method to handle the successful payment intent.
         // handlePaymentIntentSucceeded(paymentIntent);
         try {
-          const paymentRecord = Payment.findOne({
+          const paymentRecord = await Payment.findOne({
             sessionId: checkout.id,
           });
-          const user = User.findOne({ _id: paymentRecord.userId });
+          const user = await User.findOne({ _id: paymentRecord.userId });
           paymentRecord.paymentId = checkout.payment_intent;
           paymentRecord.status = checkout.payment_status;
           if (checkout.payment_status === "paid") {
@@ -130,8 +131,8 @@ paymentRouter.post(
           }
 
           console.log("Checkout completed : ", checkout);
-          user.save();
-          paymentRecord.save();
+          await user.save();
+          await paymentRecord.save();
         } catch (err) {
           // console.log(`Error : `, err.message);
           return res.status(400).send(err.message);
@@ -142,11 +143,11 @@ paymentRouter.post(
         const update = event.data.object;
 
         try {
-          const updateDoc = Payment.findOne({
+          const updateDoc = await Payment.findOne({
             paymentId: update.payment_intent,
           });
           updateDoc.receipt_url = update.receipt_url;
-          updateDoc.save();
+          await updateDoc.save();
         } catch (err) {
           return res.status(400).send(err.message);
         }
