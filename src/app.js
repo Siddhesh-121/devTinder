@@ -14,8 +14,11 @@ require("dotenv").config();
 
 // middleware that converts req JSON to JS Object
 app.use((req, res, next) => {
-  if (req.originalUrl === "/payment/webhook") return next();
-  return express.json();
+  if (req.originalUrl === "/payment/webhook") {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
 });
 app.use(
   cors({
