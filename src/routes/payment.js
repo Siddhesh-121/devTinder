@@ -165,6 +165,15 @@ paymentRouter.post(
   }
 );
 
+paymentRouter.get("/premium/verify", userAuth, async (req, res) => {
+  const user = req.user.toJSON();
+  // console.log(user);
+  if (user.isPremium) {
+    return res.json({ ...user });
+  }
+  return res.json({ ...user });
+});
+
 paymentRouter.get("/payment/verify/:sessionId", userAuth, async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.retrieve(
