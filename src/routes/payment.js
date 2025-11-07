@@ -100,6 +100,7 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
         signature,
         endpointSecret
       );
+      console.log("EVENT : ", event);
     } catch (err) {
       console.log(`Webhook signature verification failed.`, err.message);
       return res.sendStatus(400);
@@ -107,51 +108,39 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
   }
   let message = "";
   switch (event.type) {
-    case "payment_intent.succeeded":
-      const paymentSuccess = event.data.object;
+    case "checkout.session.completed":
+      const checkout = event.data.object;
 
       //console.log(paymentSuccess);
       // Then define and call a method to handle the successful payment intent.
       // handlePaymentIntentSucceeded(paymentIntent);
       try {
-        const payment = Payment.findOne({
-          sessionId: paymentSuccess.id,
+        const paymentRecord = Payment.findOne({
+          sessionId: checkout.id,
         });
-        payment.status = paymentSuccess.status;
-        const user = User.findOne({ _id: payment.userId });
-        user.isPremium = true;
-        user.plan = payment.plan;
+        const user = User.findOne({ _id: paymentRecord.userId });
+        paymentRecord.paymentId = checkout.payment_intent;
+        paymentRecord.status = checkout.payment_status;
+        if (checkout.payment_status === "paid") {
+          user.isPremium = true;
+          user.plan = paymentRecord.plan;
+        }
+
+        console.log("Checkout completed : ", checkout);
         user.save();
-        payment.save();
+        paymentRecord.save();
       } catch (err) {
         // console.log(`Error : `, err.message);
         return res.status(400).send(err.message);
       }
-      message = `PaymentIntent for ${paymentSuccess.amount} was successful!`;
-      break;
-    case "payment_intent.payment_failed":
-      const paymentFailed = event.data.object;
-
-      try {
-        const paymentDoc = Payment.findOne({
-          sessionId: paymentFailed.id,
-        });
-        paymentDoc.status = paymentFailed.status;
-        paymentDoc.save();
-      } catch (err) {
-        return res.status(400).send(err.message);
-      }
-      message = `PaymentIntent for ${paymentFailed.amount} failed!`;
-      //console.log(paymentFailed);
-      // Then define and call a method to handle the successful attachment of a PaymentMethod.
-      // handlePaymentMethodAttached(paymentMethod);
+      message = `DB Record updated successfully!`;
       break;
     case "charge.updated":
       const update = event.data.object;
 
       try {
         const updateDoc = Payment.findOne({
-          sessionId: update.payment_intent,
+          paymentId: update.payment_intent,
         });
         updateDoc.receipt_url = update.receipt_url;
         updateDoc.save();
