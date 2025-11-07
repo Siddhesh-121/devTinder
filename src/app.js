@@ -1,4 +1,5 @@
 const express = require("express");
+const http = require("http");
 const connectDB = require("./config/database");
 const app = express();
 const cookieParser = require("cookie-parser");
@@ -7,6 +8,8 @@ const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/request");
 const userRouter = require("./routes/user");
 const cors = require("cors");
+const paymentRouter = require("./routes/payment");
+const initializeSocket = require("./utils/socket");
 require("dotenv").config();
 
 // middleware that converts req JSON to JS Object
@@ -23,11 +26,15 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
 app.use("/", userRouter);
+app.use("/", paymentRouter);
+
+const server = http.createServer(app);
+initializeSocket(server);
 
 connectDB()
   .then(() => {
     console.log("Database connection established!");
-    app.listen(3000, () => {
+    server.listen(3000, () => {
       console.log("Server is listening on port 3000");
     });
   })

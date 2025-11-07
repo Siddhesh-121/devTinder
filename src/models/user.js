@@ -65,6 +65,14 @@ const userSchema = new mongoose.Schema(
       default: "This is a default description!",
       maxLength: 200,
     },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    plan: {
+      type: String,
+      default: "free",
+    },
     skills: {
       type: Array,
       maxLength: 10,
