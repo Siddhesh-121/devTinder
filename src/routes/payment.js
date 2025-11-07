@@ -161,7 +161,7 @@ paymentRouter.post(
     }
 
     // Return a 200 response to acknowledge receipt of the event
-    response.status(200).send(message);
+    res.status(200).send(message);
   }
 );
 
